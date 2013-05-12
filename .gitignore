@@ -1,6 +1,14 @@
 *.class
 
 # Package Files #
-*.jar
 *.war
 *.ear
+
+/target/surefire
+/target/surefire-reports
+/target/test-classes
+/target/sms-1.0-SNAPSHOT.jar
+/target/classes
+/target/maven-archiver
+/bin
+/src/main/java/com/meaglin/sms/testing
