@@ -71,6 +71,18 @@ public class App {
 					}
 				}
 				break;
+			case "updatestatus":
+				for(Server s : server.servers.values()) {
+					if(!s.isEnabled() || s.isDisconnected()) {
+						continue;
+					}
+					if(!s.isAvailable()) {
+						s.disconnect();
+						continue;
+					}
+					s.log("Status: Online");
+				}
+				break;
 			case "update":
 				server.updateShares();
 				break;
