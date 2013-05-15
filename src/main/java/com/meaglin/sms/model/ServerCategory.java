@@ -38,6 +38,7 @@ public class ServerCategory {
 		List<ServerFile> files = new ArrayList<>();
 		ServerFile sf;
 		File[] dirfiles;
+		getServer().log("Parsing " + getDirectory().getParent() + "/" + getDirectory().getName());
 		dirs: for (File directory : getFiles()) {
 			if (!directory.isDirectory()) {
 				continue; // only dirs.
