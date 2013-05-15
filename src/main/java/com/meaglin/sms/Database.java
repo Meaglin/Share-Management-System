@@ -22,7 +22,7 @@ public class Database {
 	public Database(Properties config) {
 		url = "jdbc:mysql://" + config.getProperty("mysql.host", "localhost")
 				+ ":" + config.getProperty("mysql.port", "3306")
-				+ "/sms?useUnicode=true&characterEncoding=utf-8";
+				+ "/" + config.getProperty("mysql.database", "sms") + "?useUnicode=true&characterEncoding=utf-8";
 		username = config.getProperty("mysql.username", "root");
 		password = config.getProperty("mysql.password", "");
 		try {
