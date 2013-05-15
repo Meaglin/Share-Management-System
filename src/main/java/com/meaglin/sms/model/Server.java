@@ -146,10 +146,10 @@ public class Server {
 			String dir;
 			while(it.hasNext()) {
 				dir = it.next();
-				if(path.startsWith(dir)) { // We already know this mount.
+				if(path.startsWith(dir + "/")) { // We already know this mount.
 					continue sc;
 				}
-				if(dir.startsWith(path)) {
+				if(dir.startsWith(path + "/")) {
 					it.remove();
 				}
 			}
@@ -462,7 +462,9 @@ public class Server {
 		setStatus(reachable ? "Online" : "Offline");
 		save();
 
+		toUpdate.clear();
 		log("Status: " + this.getStatus());
+
 		if (!reachable) {
 			if (!isDisconnected()) {
 				disconnect();
@@ -474,7 +476,6 @@ public class Server {
 
 		mountFolders();
 		
-		toUpdate.clear();
 
 		List<ServerFile> files = getFiles();
 		log("Loaded " + files.size() + " from db.");
