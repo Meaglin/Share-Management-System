@@ -41,9 +41,35 @@ public class App {
 			command = args[0];
 		}
 		switch (command) {
+			case "fullclean":
+				for(Server s : server.servers.values()) {
+					if(!s.isEnabled() || s.isDisconnected()) {
+						continue;
+					}
+					s.disconnect();
+				}
+				server.getDb().cleanFiles();
+				for(String[] mount : server.getMounts()) {
+					if(mount[1].startsWith(config.getProperty("mount.dir"))) {
+						switch(server.unmount(mount[1])) {
+							case 0:
+								System.out.println("Cleaned up mount " + mount[1]);
+								break;
+							case 1:
+								System.out.println("Cleaned up mount(with lock-remove) " + mount[1]);
+								break;
+							case -1:
+								System.out.println("Error cleaning up mount " + mount[1]);
+								break;
+						}
+					}
+				}
+				System.out.println("Cleaned up " + deleteFiles(new File(config.getProperty("mount.categorydir", "/thisshouldnotexists"))) + " remaining category files.");
+				System.out.println("Cleaned up " + deleteFiles(new File(config.getProperty("mount.dir", "/thisshouldnotexists"))) + " remaining mount files.");
+				break;
 			case "clean":
 				for(Server s : server.servers.values()) {
-					if(!s.isEnabled()) {
+					if(!s.isEnabled() || s.isDisconnected()) {
 						continue;
 					}
 					s.disconnect();
@@ -63,7 +89,7 @@ public class App {
 						continue;
 					}
 					for(String mount : s.getMountFolders()) {
-						Map<String, String> locks = s.getLocks(s.getPath() + "/" + mount);
+						Map<String, String> locks = server.getLocks(s.getPath() + "/" + mount);
 						s.log(s.getPath() + "/" + mount);
 						for(Entry<String, String> lock : locks.entrySet()) {
 							s.log("  " + lock.getValue() + "@" + lock.getKey());
@@ -87,7 +113,7 @@ public class App {
 				server.updateShares();
 				break;
 			default:
-				System.out.println("Options: clean|update|listmounts|listlocks");
+				System.out.println("Options: fullclean|clean|listmounts|listlocks|updatestatus|update");
 				break;
 		}
 	}
@@ -95,5 +121,18 @@ public class App {
 	public static void main(String[] args) {
 		App app = new App();
 		app.start(args);
+	}
+	
+	public int deleteFiles(File start) {
+		File[] list = start.listFiles();
+		int cnt = 0;
+		if(list != null) {
+			for(File sub : list) {
+				cnt += deleteFiles(sub);
+				sub.delete();
+				cnt += 1;
+			}
+		}
+		return cnt;
 	}
 }

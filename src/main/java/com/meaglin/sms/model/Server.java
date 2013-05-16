@@ -1,9 +1,7 @@
 package com.meaglin.sms.model;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -16,11 +14,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.meaglin.sms.SmsServer;
 
@@ -147,6 +143,9 @@ public class Server {
 			while(it.hasNext()) {
 				dir = it.next();
 				if(path.startsWith(dir + "/")) { // We already know this mount.
+					continue sc;
+				}
+				if(path.equalsIgnoreCase(dir)) {
 					continue sc;
 				}
 				if(dir.startsWith(path + "/")) {
@@ -844,137 +843,18 @@ public class Server {
 		}
 
 		for (String dir : this.getMountFolders()) {
-			
-			int status = unmount(getPath() + "/" + dir);
-			if(status == 0) {
-				log("removed mount " + getPath() + "/" + dir);
-				continue;
+			switch(getController().unmount(getPath() + "/" + dir)) {
+				case 0:
+					log("removed mount " + getPath() + "/" + dir);
+					break;
+				case 1:
+					log("removed mount with lock-remove " + getPath() + "/" + dir);
+					break;
+				case -1:
+					log("Error removing mount " + getPath() + "/" + dir);
+					break;
 			}
-			
-			killMountLocks(getPath() + "/" + dir);
-			unmount(getPath() + "/" + dir);
-			
-			log("removed mount with lock-remove " + getPath() + "/" + dir);
 		}
 	}
 	
-	// Slow... TODO: make faster
-	private void killMountLocks(String mountpoint) {
-		for(String pid : getLockingPids(mountpoint)) {
-			killPid(pid);
-		}
-	}
-	
-	private int unmount(String mountpoint) {
-		ProcessBuilder task = new ProcessBuilder(new String[] { "/bin/umount", mountpoint });
-		
-		task.redirectErrorStream(true); // Channel errors to stdOut.
-		task.redirectInput(Redirect.INHERIT);
-		task.redirectOutput(Redirect.INHERIT);
-		try {
-			Process proc = task.start();
-			return proc.waitFor();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		return -1;
-	}
-	
-	
-	// TODO: check if we can use simple kills instead of -9
-	private void killPid(String pid) {
-		ProcessBuilder task = new ProcessBuilder(new String[] {
-				"kill"
-//				, "-9"
-				, pid });
-		task.redirectErrorStream(true); // Channel errors to stdOut.
-		task.redirectInput(Redirect.INHERIT);
-		task.redirectOutput(Redirect.INHERIT);
-		try {
-			Process proc = task.start();
-			proc.waitFor();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private Set<String> getLockingPids(String mountpoint) {
-		List<String> lines = new ArrayList<>();
-		
-		ProcessBuilder task = new ProcessBuilder(new String[] { "lsof", "-F", "p", "+D", mountpoint });
-		task.redirectErrorStream(true); // Channel errors to stdOut.
-		task.redirectInput(Redirect.INHERIT);
-		
-		try {
-			Process proc = task.start();
-			BufferedReader input = new BufferedReader (new InputStreamReader( proc.getInputStream()));
-			String line;
-			while ((line = input.readLine ()) != null) {
-				lines.add(line);
-			}
-			input.close();
-			proc.waitFor();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		Set<String> pids = new HashSet<>();
-		
-		for(String line : lines) {
-			if(line == null || line.trim().length() == 0) {
-				continue;
-			}
-			if(line.startsWith("p")) {
-				pids.add(line.substring(1));
-			} 
-		}
-		
-		return pids;
-	}
-	
-	
-    public Map<String, String> getLocks(String mountpoint) {
-		List<String> lines = new ArrayList<>();
-		
-		ProcessBuilder task = new ProcessBuilder(new String[] { "lsof", "-F", "pn", "+D", mountpoint });
-		task.redirectErrorStream(true); // Channel errors to stdOut.
-		task.redirectInput(Redirect.INHERIT);
-		
-		try {
-			Process proc = task.start();
-			BufferedReader input = new BufferedReader (new InputStreamReader( proc.getInputStream()));
-			String line;
-			while ((line = input.readLine ()) != null) {
-				lines.add(line);
-			}
-			input.close();
-			proc.waitFor();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		Map<String, String> locks = new HashMap<>();
-		
-		String currentPid = null;
-		for(String line : lines) {
-			if(line == null || line.trim().length() == 0) {
-				continue;
-			}
-			if(line.startsWith("p")) {
-				currentPid = line.substring(1);
-			} else if(line.startsWith("n")) {
-				locks.put(line.substring(1), currentPid);
-			}
-		}
-		
-		return locks;
-	}
 }

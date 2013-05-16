@@ -207,7 +207,6 @@ public class SmsServer {
 		return lines;
 	}
 	
-	// TODO: improve naming
 	public Map<String, String> getFileLocks(String dir) {
 		Map<String, String> map = new HashMap<>();
 		
@@ -226,7 +225,6 @@ public class SmsServer {
 		return map;
 	}
 	
-	// TODO: improve naming
 	private List<String> getFileLocksLines(String dir) {
 		//lsof -F pn -x +D /smstest/categories
 		
@@ -252,6 +250,134 @@ public class SmsServer {
 		}
 		
 		return lines;
+	}
+	
+	public int unmount(String mountpoint) {
+		int returnid = tryUnmount(mountpoint);
+		if(returnid == 0) {
+			return 0;
+		}
+		killMountLocks(mountpoint);
+		returnid = tryUnmount(mountpoint);
+		if(returnid == 0) {
+			return 1;
+		}
+		return -1;
+	}
+	
+	private void killMountLocks(String mountpoint) {
+		for(String pid : getLockingPids(mountpoint)) {
+			killPid(pid);
+		}
+	}
+		
+	private void killPid(String pid) {
+		ProcessBuilder task = new ProcessBuilder(new String[] {
+				"kill"
+				, pid });
+		task.redirectErrorStream(true); // Channel errors to stdOut.
+		task.redirectInput(Redirect.INHERIT);
+		task.redirectOutput(Redirect.INHERIT);
+		try {
+			Process proc = task.start();
+			proc.waitFor();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+		
+	private Set<String> getLockingPids(String mountpoint) {
+		List<String> lines = new ArrayList<>();
+		
+		ProcessBuilder task = new ProcessBuilder(new String[] { "lsof", "-F", "p", "+D", mountpoint });
+		task.redirectErrorStream(true); // Channel errors to stdOut.
+		task.redirectInput(Redirect.INHERIT);
+		
+		try {
+			Process proc = task.start();
+			BufferedReader input = new BufferedReader (new InputStreamReader( proc.getInputStream()));
+			String line;
+			while ((line = input.readLine ()) != null) {
+				lines.add(line);
+			}
+			input.close();
+			proc.waitFor();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		Set<String> pids = new HashSet<>();
+		
+		for(String line : lines) {
+			if(line == null || line.trim().length() == 0) {
+				continue;
+			}
+			if(line.startsWith("p")) {
+				pids.add(line.substring(1));
+			} 
+		}
+		
+		return pids;
+	}
+	
+	private int tryUnmount(String mountpoint) {
+		ProcessBuilder task = new ProcessBuilder(new String[] { "/bin/umount", mountpoint });
+		
+		task.redirectErrorStream(true); // Channel errors to stdOut.
+		task.redirectInput(Redirect.INHERIT);
+		task.redirectOutput(Redirect.INHERIT);
+		try {
+			Process proc = task.start();
+			return proc.waitFor();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		return -1;
+	}
+	
+	public Map<String, String> getLocks(String mountpoint) {
+		List<String> lines = new ArrayList<>();
+		
+		ProcessBuilder task = new ProcessBuilder(new String[] { "lsof", "-F", "pn", "+D", mountpoint });
+		task.redirectErrorStream(true); // Channel errors to stdOut.
+		task.redirectInput(Redirect.INHERIT);
+		
+		try {
+			Process proc = task.start();
+			BufferedReader input = new BufferedReader (new InputStreamReader( proc.getInputStream()));
+			String line;
+			while ((line = input.readLine ()) != null) {
+				lines.add(line);
+			}
+			input.close();
+			proc.waitFor();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		Map<String, String> locks = new HashMap<>();
+		
+		String currentPid = null;
+		for(String line : lines) {
+			if(line == null || line.trim().length() == 0) {
+				continue;
+			}
+			if(line.startsWith("p")) {
+				currentPid = line.substring(1);
+			} else if(line.startsWith("n")) {
+				locks.put(line.substring(1), currentPid);
+			}
+		}
+		
+		return locks;
 	}
 	
 	public Database getDb() {
