@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import com.meaglin.sms.model.HistoryEntry;
 import com.meaglin.sms.model.Server;
 import com.meaglin.sms.model.ServerFile;
 
@@ -153,7 +154,7 @@ public class Database {
 	}
 
 	private static final String UPDATE_SERVER = "UPDATE servers SET status = ?, lastupdate = ?, lastchange = ?, filecount = ?, categorycount = ?, disconnected = ? WHERE id = ?";
-	private static final String UPDATE_FILES = "UPDATE files SET flag = ?, duplicate = ? WHERE id = ?";
+	private static final String UPDATE_FILES = "UPDATE files SET flag = ?, duplicate = ?, path = ?, modified_at = ? WHERE id = ?";
 	private static final String DELETE_FILES = "DELETE FROM files WHERE id = ?";
 
 	public void save(Server server) {
@@ -178,10 +179,10 @@ public class Database {
 			this.db.setAutoCommit(false);
 			for (ServerFile file : files) {
 				if (file.getId() != 0) {
-					this.bindParams(updatestmt, file.getFlag(), file.isDuplicate(), file.getId());
+					this.bindParams(updatestmt, file.getFlag(), file.isDuplicate(), file.getPath(), file.getModifiedAt(), file.getId());
 					updatestmt.addBatch();
 				} else {
-					params.add(new Object[] { file.getServerid(),
+					params.add(new Object[] { file.getCreatedAt(), file.getModifiedAt() ,file.getServerid(),
 							file.getServercategoryid(), file.getCategoryid(),
 							file.getName(), file.getDisplayname(),
 							file.getDirectory(), file.getDisplaydirectory(),
@@ -196,7 +197,7 @@ public class Database {
 			this.db.setAutoCommit(true);
 			updatestmt.close();
 
-			insert("files", new String[] { "serverid", "servercategoryid",
+			insert("files", new String[] { "created_at", "modified_at", "serverid", "servercategoryid",
 					"categoryid", "name", "displayname", "directory",
 					"displaydirectory", "type", "flag", "duplicate", "extension", "path",
 					"serverpath" }, params);
@@ -236,6 +237,20 @@ public class Database {
 	}
 	
 
+	public void saveHistory(List<HistoryEntry> history) {
+		List<Object[]> params = new ArrayList<>();
+		try {
+			this.checkConnection();
+			for (HistoryEntry entry : history) {
+				params.add(new Object[] { entry.getTime(), entry.getLevel(), entry.getType(), entry.getAction(), entry.getItem() });
+			}
+			insert("history", new String[] { "time", "level", "type", "action", "item" }, params);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+	}
+	
 	// Close all connections and resources.
 	public void collect(Connection conn, PreparedStatement st, ResultSet res) {
 		if (res != null) {

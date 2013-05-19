@@ -17,8 +17,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.meaglin.sms.model.Category;
+import com.meaglin.sms.model.HistoryEntry;
 import com.meaglin.sms.model.Server;
 import com.meaglin.sms.model.ServerCategory;
+import com.meaglin.sms.model.ServerFile;
 
 public class SmsServer {
 
@@ -30,6 +32,7 @@ public class SmsServer {
 	private String[] dirignores;
 	
 	private Set<String> occupiedFiles = new HashSet<>();
+	private List<HistoryEntry> unsavedHistory = new ArrayList<>();
 
 	public SmsServer(Properties config) {
 		categories = new ConcurrentHashMap<>();
@@ -132,7 +135,39 @@ public class SmsServer {
 				t.printStackTrace();
 			}
 		}
-
+		saveHistory();
+	}
+	
+	public void track(ServerFile changedFile) {
+		switch(changedFile.getFlag()) {
+			case ServerFile.CREATED:
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Created", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				break;
+			case ServerFile.UPDATED:
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Updated", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				break;
+			case ServerFile.DELETED:
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Deleted", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				break;
+			default:
+				// TODO: checkme.
+				break;
+		}
+	}
+	
+	public void track(Server changedServer) {
+		if(changedServer.isDisconnected()) {
+			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Disconnected", changedServer.getId() + ";" + changedServer.getName()));
+		} else {
+			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Connected", changedServer.getId() + ";" + changedServer.getName()));
+		}
+	}
+	
+	public void saveHistory() {
+		if(unsavedHistory.size() != 0) {
+			this.getDb().saveHistory(unsavedHistory);
+			unsavedHistory.clear();
+		}
 	}
 
 	public void makeCategoryDirs() {

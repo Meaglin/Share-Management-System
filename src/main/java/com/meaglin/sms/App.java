@@ -108,6 +108,7 @@ public class App {
 					}
 					s.log("Status: Online");
 				}
+				server.saveHistory();
 				break;
 			case "update":
 				server.updateShares();

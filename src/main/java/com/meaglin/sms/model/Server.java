@@ -32,10 +32,11 @@ public class Server {
 	private boolean enabled, disconnected;
 
 	private String name, displayname, code, type, description, config, status, ip;
+
+	
+	private boolean justReconnected;
 	private Map<String, String> configMap;
-
 	private Map<Integer, ServerCategory> categories;
-
 	public List<ServerFile> toUpdate;
 	private List<ServerFile> currentFiles;
 
@@ -395,6 +396,20 @@ public class Server {
 		return this;
 	}
 
+	/**
+	 * @return the justReconnected
+	 */
+    public boolean isJustReconnected() {
+	    return justReconnected;
+    }
+
+	/**
+	 * @param justReconnected the justReconnected to set
+	 */
+    public void setJustReconnected(boolean justReconnected) {
+	    this.justReconnected = justReconnected;
+    }
+
 	private void parseConfig() {
 		String[] vars = config.split("<;>");
 		for (String var : vars) {
@@ -470,11 +485,14 @@ public class Server {
 			}
 			return;
 		}
-		setDisconnected(false);
+		if(isDisconnected()) {
+			setDisconnected(false);
+			setJustReconnected(true);
+			getController().track(this);			
+		}
 		log("Loading...");
 
 		mountFolders();
-		
 
 		List<ServerFile> files = getFiles();
 		log("Loaded " + files.size() + " from db.");
@@ -497,10 +515,12 @@ public class Server {
 				}
 			}
 			if (found != null) {
-				if (found.getFlag() == ServerFile.DELETED) {
-					found.setFlag(ServerFile.CREATED);
-					toUpdate.add(found);
-				} else if (found.getFlag() == ServerFile.UP_TO_DATE) {
+				// Disabled to allow renaming outside of the system.
+//				if (found.getFlag() == ServerFile.DELETED) {
+//					found.setFlag(ServerFile.CREATED);
+//					toUpdate.add(found);
+//				} else 
+				if (found.getFlag() == ServerFile.UP_TO_DATE) {
 					// File is already known and registered.
 					getController().occupyFile(found.getPath());
 				}
@@ -683,7 +703,12 @@ public class Server {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			// Prevent history spam after reconnects.
+			if(!isJustReconnected()) {
+				getController().track(serverfile);
+			}
 			serverfile.setFlag(ServerFile.UP_TO_DATE);
+			serverfile.setModified();
 			toUpdate.add(serverfile);
 		}
 		this.saveChanges();
@@ -708,6 +733,7 @@ public class Server {
 			if (file.getFlag() == ServerFile.DELETED) {
 				file.tryDelete(rootDir);
 				toDelete.add(file);
+				getController().track(file);
 				getController().forgetFile(file.getPath());
 			}
 		}
@@ -744,7 +770,12 @@ public class Server {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			// Prevent history spam after reconnects.
+			if(!isJustReconnected()) {
+				getController().track(serverfile);
+			}
 			serverfile.setFlag(ServerFile.UP_TO_DATE);
+			serverfile.setModified();
 			toUpdate.add(serverfile);
 		}
 		this.saveChanges();
@@ -757,6 +788,7 @@ public class Server {
 		log("deleted file links.");
 		unmountFolders();
 		log("unmounted shares");
+		getController().track(this);
 	}
 
 	public void deleteFileLinks() {
