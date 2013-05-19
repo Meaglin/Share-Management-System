@@ -62,15 +62,16 @@ public class ServerCategory {
 				sf.setDisplayname(sub.getName());
 				sf.setDirectory(directory.getName());
 				sf.setDisplaydirectory(directory.getName());
-				sf.setServerpath(sub.getParent());
-				sf.setType("unknown");
+				sf.setServerpath(sub.getPath());
+				sf.setFlag(ServerFile.CREATED);
+				sf.setPath("");
+				sf.setCreated();
+
 				// TODO: this is slow, find a better way.
 				// sf.setType(sub.isDirectory() ? "directory" : "file");
-				sf.setFlag(ServerFile.CREATED);
-
+				sf.setType("unknown");
 				// TODO: fill these.
 				sf.setExtension("");
-				sf.setPath("");
 				files.add(sf);
 			}
 

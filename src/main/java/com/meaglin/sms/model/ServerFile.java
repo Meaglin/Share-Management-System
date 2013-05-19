@@ -21,6 +21,8 @@ public class ServerFile {
 	private int flag;
 	
 	private boolean duplicate;
+	
+	private long createdAt, modifiedAt;
 
 	private String name, displayname, directory, displaydirectory, type,
 			extension, path, serverpath;
@@ -288,7 +290,37 @@ public class ServerFile {
 	    this.duplicate = duplicate;
     }
 
-	private static final String[] columns = new String[] { "serverid",
+	/**
+	 * @return the createdAt
+	 */
+	public long getCreatedAt() {
+		return createdAt;
+	}
+
+	/**
+	 * @return the modifiedAt
+	 */
+	public long getModifiedAt() {
+		return modifiedAt;
+	}
+
+	/**
+	 * @param createdAt the createdAt to set
+	 */
+	public void setCreated() {
+		this.createdAt = System.currentTimeMillis();
+	}
+
+	/**
+	 * @param modifiedAt the modifiedAt to set
+	 */
+	public void setModified() {
+		this.modifiedAt = System.currentTimeMillis();
+	}
+
+	
+	// TODO: we are not using this, remove?
+	private static final String[] columns = new String[] { "created_at", "modified_at", "serverid",
 			"servercategoryid", "categoryid", "name", "displayname",
 			"directory", "displaydirectory", "type", "flag", "duplicate", "extension",
 			"path", "serverpath" };
@@ -301,7 +333,7 @@ public class ServerFile {
 		Database db = getServer().getController().getDb();
 		if (getId() == 0) { // new
 			try {
-				db.insertOne("files", columns, getServerid(),
+				db.insertOne("files", columns, getCreatedAt(), getModifiedAt(), getServerid(),
 						getServercategoryid(), getCategoryid(), getName(),
 						getDisplayname(), getDirectory(),
 						getDisplaydirectory(), getType(), getFlag(),
@@ -312,8 +344,8 @@ public class ServerFile {
 		} else {
 			try {
 				// TODO: implement update for more vars.
-				db.updateQuery("UPDATE `files` SET flag = ?, duplicate = ? WHERE id = ?",
-						getFlag(), isDuplicate(), getId());
+				db.updateQuery("UPDATE `files` SET flag = ?, duplicate = ?, modified_at WHERE id = ?",
+						getFlag(), isDuplicate(), getModifiedAt(), getId());
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -377,6 +409,8 @@ public class ServerFile {
 			e.printStackTrace();
 		}
 
+		
+		// TODO: find a better way to delete parent directory.
 		try {
 			Files.delete(file.getParentFile().toPath());
 		} catch (DirectoryNotEmptyException e) {
@@ -384,8 +418,6 @@ public class ServerFile {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		// TODO: implement.
-
 	}
 
 }
