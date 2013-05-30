@@ -83,6 +83,16 @@ public class App {
 					System.out.println(mount[0] + "@" + mount[1]);
 				}
 				break;
+			case "listappmounts":
+				for(Server s : server.servers.values()) {
+					if(!s.isEnabled()) {
+						continue;
+					}
+					for(String mount : s.getMountFolders()) {
+						s.log(mount);
+					}
+				}
+				break;
 			case "listlocks":
 				for(Server s : server.servers.values()) {
 					if(!s.isEnabled()) {
@@ -114,7 +124,7 @@ public class App {
 				server.updateShares();
 				break;
 			default:
-				System.out.println("Options: fullclean|clean|listmounts|listlocks|updatestatus|update");
+				System.out.println("Options: fullclean|clean|listmounts|listappmounts|listlocks|updatestatus|update");
 				break;
 		}
 	}

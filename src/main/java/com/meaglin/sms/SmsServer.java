@@ -141,13 +141,13 @@ public class SmsServer {
 	public void track(ServerFile changedFile) {
 		switch(changedFile.getFlag()) {
 			case ServerFile.CREATED:
-				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Created", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Created", changedFile, changedFile.getPath() + ";" + changedFile.getServerpath()));
 				break;
 			case ServerFile.UPDATED:
-				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Updated", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Updated", changedFile, changedFile.getPath() + ";" + changedFile.getServerpath()));
 				break;
 			case ServerFile.DELETED:
-				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Deleted", changedFile.getId() + ";" + changedFile.getPath() + ";" + changedFile.getServerpath()));
+				unsavedHistory.add(new HistoryEntry("VERBOSE", "File", "Deleted", changedFile, changedFile.getPath() + ";" + changedFile.getServerpath()));
 				break;
 			default:
 				// TODO: checkme.
@@ -157,9 +157,9 @@ public class SmsServer {
 	
 	public void track(Server changedServer) {
 		if(changedServer.isDisconnected()) {
-			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Disconnected", changedServer.getId() + ";" + changedServer.getName()));
+			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Disconnected", changedServer, changedServer.getName()));
 		} else {
-			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Connected", changedServer.getId() + ";" + changedServer.getName()));
+			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Connected", changedServer, changedServer.getName()));
 		}
 	}
 	
@@ -211,6 +211,15 @@ public class SmsServer {
 			mountpoint = m.substring(m.indexOf(" on ") + 4, m.indexOf(" type "));
 			mounttype = m.substring(m.indexOf(" type ") + 6, m.indexOf(" ("));
 			opts = m.substring(m.indexOf(" (") + 2, m.length() - 2);
+			
+			// TODO: find  better fix.
+			// Fix trailing /
+			if(mount.length() > 0 && mount.charAt(mount.length() - 1) == '/') {
+				mount = mount.substring(0, mount.length() - 1);
+			}
+			if(mountpoint.length() > 0 && mountpoint.charAt(mountpoint.length() - 1) == '/') {
+				mountpoint = mountpoint.substring(0, mountpoint.length() - 1);
+			}
 			list.add(new String[] { mount, mountpoint, mounttype, opts });
 		}
 

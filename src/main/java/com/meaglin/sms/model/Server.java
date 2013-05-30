@@ -635,7 +635,7 @@ public class Server {
 				if(mnt[0].equals(mount)) {
 					return true;
 				} else {
-					throw new RuntimeException("[" + getName() + "] Trying to mount " + mount + " on already ocupied mountpoint " + mountpoint);
+					throw new RuntimeException("[" + getName() + "] Trying to mount " + mount + "[" + mnt[0] + "] on already ocupied mountpoint " + mountpoint + "[" + mnt[1] + "]");
 				}
 			}
 		}

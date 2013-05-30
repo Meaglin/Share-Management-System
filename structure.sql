@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS `history` (
   `level` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
   `action` varchar(255) NOT NULL,
+  `serverid` int(11) NOT NULL,
+  `servercategoryid` int(11) NOT NULL,
+  `categoryid` int(11) NOT NULL,
+  `fileid` int(11) NOT NULL,
   `item` text NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=13 ;

@@ -242,9 +242,11 @@ public class Database {
 		try {
 			this.checkConnection();
 			for (HistoryEntry entry : history) {
-				params.add(new Object[] { entry.getTime(), entry.getLevel(), entry.getType(), entry.getAction(), entry.getItem() });
+				params.add(new Object[] { 	entry.getTime(), entry.getLevel(), entry.getType(), 
+											entry.getAction(), entry.getServerid(), entry.getCategoryid(),
+											entry.getServercategoryid(), entry.getFileid(), entry.getItem() });
 			}
-			insert("history", new String[] { "time", "level", "type", "action", "item" }, params);
+			insert("history", new String[] { "time", "level", "type", "action", "serverid", "categoryid", "servercategoryid", "fileid", "item" }, params);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
