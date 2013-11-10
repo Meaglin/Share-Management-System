@@ -22,6 +22,8 @@ public class ServerCategory {
 
 	private int id, categoryid, serverid;
 	private String name, path;
+	// Temporary fix for too many deep mounts
+	private boolean dontScan;
 
 	private Category category;
 	private Server server;
@@ -36,6 +38,9 @@ public class ServerCategory {
 
 	public List<ServerFile> getServerFiles() {
 		List<ServerFile> files = new ArrayList<>();
+		if(dontScan) {
+			return files;
+		}
 		ServerFile sf;
 		File[] dirfiles;
 		getServer().log("Parsing " + getDirectory().getParent() + "/" + getDirectory().getName());
@@ -201,6 +206,7 @@ public class ServerCategory {
 		serverid = res.getInt("serverid");
 		name = res.getString("name");
 		path = res.getString("path");
+		dontScan = res.getBoolean("dontscan");
 		return this;
 	}
 
