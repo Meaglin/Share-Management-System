@@ -12,3 +12,6 @@
 /target/maven-archiver
 /bin
 /src/main/java/com/meaglin/sms/testing
+/.classpath
+/.project
+/target
