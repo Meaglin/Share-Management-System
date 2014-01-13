@@ -16,16 +16,17 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.meaglin.sms.model.AbstractServer;
 import com.meaglin.sms.model.Category;
 import com.meaglin.sms.model.HistoryEntry;
-import com.meaglin.sms.model.Server;
-import com.meaglin.sms.model.ServerCategory;
 import com.meaglin.sms.model.ServerFile;
+import com.meaglin.sms.model.simple.Server;
+import com.meaglin.sms.model.simple.ServerCategory;
 
 public class SmsServer {
 
 	private Map<Integer, Category> categories;
-	public Map<Integer, Server> servers;
+	public Map<Integer, AbstractServer> servers;
 	private Database db;
 
 	private Properties config;
@@ -47,9 +48,9 @@ public class SmsServer {
 		ResultSet res = null;
 		try {
 			res = db.selectQuery("SELECT * FROM servers ", new Object[0]);
-			Server s;
+			AbstractServer s;
 			while (res.next()) {
-				s = (new Server(this)).bind(res);
+				s = (new Server(this, res));
 				servers.put(s.getId(), s);
 			}
 		} catch (SQLException e) {
@@ -64,7 +65,7 @@ public class SmsServer {
 			res = db.selectQuery("SELECT * FROM categories", new Object[0]);
 			Category c;
 			while (res.next()) {
-				c = (new Category(this)).bind(res);
+				c = new Category(this, res);
 				categories.put(c.getId(), c);
 			}
 		} catch (SQLException e) {
@@ -88,14 +89,13 @@ public class SmsServer {
 			res = db.selectQuery("SELECT * FROM servercategories",
 					new Object[0]);
 			ServerCategory servercategory;
-			Server server;
+			AbstractServer server;
 			while (res.next()) {
 				server = servers.get(res.getInt("serverid"));
 				if (server == null) {
 					continue;
 				}
-				servercategory = new ServerCategory(this, server);
-				servercategory.bind(res);
+				servercategory = new ServerCategory(this, server, res);
 				server.addServerCategory(servercategory);
 				servercategory.setCategory(categories.get(servercategory
 						.getCategoryid()));
@@ -110,27 +110,27 @@ public class SmsServer {
 	public void updateShares() {
 		this.makeCategoryDirs();
 
-		for (Server server : servers.values()) {
+		for (AbstractServer server : servers.values()) {
 			if(!server.isEnabled()) {
 				continue;
 			}
 			try {
 				server.refreshFiles();
 				server.saveChanges();
-				server.log("Saved " + server.toUpdate.size() + " changes.");
+				server.log("Saved " + server.getChangeCount() + " changes.");
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
 		}
 
-		for (Server server : servers.values()) {
+		for (AbstractServer server : servers.values()) {
 			if(!server.isEnabled()) {
 				continue;
 			}
 			try {
 				server.updateServerStats();
 				server.updateFileLinks();
-				server.log("Updated " + server.toUpdate.size() + " filelinks.");
+				server.log("Updated " + server.getChangeCount() + " filelinks.");
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
@@ -155,7 +155,7 @@ public class SmsServer {
 		}
 	}
 	
-	public void track(Server changedServer) {
+	public void track(AbstractServer changedServer) {
 		if(changedServer.isDisconnected()) {
 			unsavedHistory.add(new HistoryEntry("INFO", "Server", "Disconnected", changedServer, changedServer.getName()));
 		} else {
@@ -432,7 +432,7 @@ public class SmsServer {
 		return categories.get(id);
 	}
 
-	public Server getServer(int id) {
+	public AbstractServer getServer(int id) {
 		return servers.get(id);
 	}
 

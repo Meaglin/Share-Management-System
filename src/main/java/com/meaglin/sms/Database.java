@@ -10,8 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import com.meaglin.sms.model.AbstractServer;
 import com.meaglin.sms.model.HistoryEntry;
-import com.meaglin.sms.model.Server;
 import com.meaglin.sms.model.ServerFile;
 
 public class Database {
@@ -157,12 +157,12 @@ public class Database {
 	private static final String UPDATE_FILES = "UPDATE files SET flag = ?, duplicate = ?, path = ?, modified_at = ? WHERE id = ?";
 	private static final String DELETE_FILES = "DELETE FROM files WHERE id = ?";
 
-	public void save(Server server) {
+	public void save(AbstractServer abstractServer) {
 		try {
-			updateQuery(UPDATE_SERVER, server.getStatus(),
-					server.getLastupdate(), server.getLastchange(),
-					server.getFilecount(), server.getCategorycount(),
-					server.isDisconnected(), server.getId());
+			updateQuery(UPDATE_SERVER, abstractServer.getStatus(),
+					abstractServer.getLastupdate(), abstractServer.getLastchange(),
+					abstractServer.getFilecount(), abstractServer.getCategorycount(),
+					abstractServer.isDisconnected(), abstractServer.getId());
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

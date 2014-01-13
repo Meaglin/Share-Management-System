@@ -1,5 +1,6 @@
 package com.meaglin.sms.model;
 
+
 public class HistoryEntry {
 
 	private int id;
@@ -30,7 +31,7 @@ public class HistoryEntry {
 		this.item = item;
 	}
 
-	public HistoryEntry(String level, String type, String action, Server server, String item) {
+	public HistoryEntry(String level, String type, String action, AbstractServer server, String item) {
 		time = System.currentTimeMillis();
 		this.level = level;
 		this.type = type;

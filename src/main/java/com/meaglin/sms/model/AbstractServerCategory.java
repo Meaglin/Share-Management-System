@@ -1,93 +1,38 @@
-/**
- * 
- */
 package com.meaglin.sms.model;
 
 import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.meaglin.sms.SmsServer;
 
-/**
- * 
- * @author Joseph Verburg
- * 
- */
-public class ServerCategory {
-
+public abstract class AbstractServerCategory {
 	private SmsServer controller;
 
 	private int id, categoryid, serverid;
-	private String name, path;
-	// Temporary fix for too many deep mounts
-	private boolean dontScan;
-
+	private String name, path, config;
+	
+	private JSONObject configMap;
+	
 	private Category category;
-	private Server server;
+	private AbstractServer server;
 
 	private String[] ignores;
 
-	public ServerCategory(SmsServer smsServer, Server server) {
+	public AbstractServerCategory(SmsServer smsServer, AbstractServer server) {
 		controller = smsServer;
 		this.server = server;
 		ignores = controller.getDirectoryIgnores();
 	}
-
-	public List<ServerFile> getServerFiles() {
-		List<ServerFile> files = new ArrayList<>();
-		if(dontScan) {
-			return files;
-		}
-		ServerFile sf;
-		File[] dirfiles;
-		getServer().log("Parsing " + getDirectory().getParent() + "/" + getDirectory().getName());
-		dirs: for (File directory : getFiles()) {
-			if (!directory.isDirectory()) {
-				continue; // only dirs.
-			}
-
-			for (String ignore : ignores) {
-				if (directory.getName().startsWith(ignore)) {
-					continue dirs;
-				}
-			}
-
-			dirfiles = directory.listFiles();
-			if (dirfiles == null) { // System Volume Information >.>
-				continue;
-			}
-			for (File sub : dirfiles) {
-				sf = new ServerFile();
-				sf.setServercategory(this);
-				sf.setServer(getServer());
-				sf.setName(sub.getName());
-				sf.setDisplayname(sub.getName());
-				sf.setDirectory(directory.getName());
-				sf.setDisplaydirectory(directory.getName());
-				sf.setServerpath(sub.getPath());
-				sf.setFlag(ServerFile.CREATED);
-				sf.setPath("");
-				sf.setCreated();
-
-				// TODO: this is slow, find a better way.
-				// sf.setType(sub.isDirectory() ? "directory" : "file");
-				sf.setType("unknown");
-				// TODO: fill these.
-				sf.setExtension("");
-				files.add(sf);
-			}
-
-		}
-		return files;
+	
+	public AbstractServerCategory(SmsServer smsServer, AbstractServer server, ResultSet set) throws SQLException {
+		this(smsServer, server);
+		bind(set);
 	}
-
-	private File[] getFiles() {
-		return getDirectory().listFiles();
-	}
-
+	
 	public File getDirectory() {
 		return new File(getServer().getPath(), getPath());
 	}
@@ -137,7 +82,7 @@ public class ServerCategory {
 	/**
 	 * @return the server
 	 */
-	public Server getServer() {
+	public AbstractServer getServer() {
 		return server;
 	}
 
@@ -147,7 +92,28 @@ public class ServerCategory {
 	public SmsServer getController() {
 		return controller;
 	}
+	
+	/**
+	 * @return the ignores
+	 */
+	public String[] getIgnores() {
+		return ignores;
+	}
 
+    public JSONObject getConfig() {
+    	if(configMap == null) {
+    		configMap = new JSONObject(config);
+    	}
+    	return configMap;
+    }
+	
+	public boolean isDontScan() {
+		try {
+			return getConfig().getBoolean("dontscan");
+		} catch(JSONException e) {
+			return false;
+		}
+	}
 	/**
 	 * @param id
 	 *			the id to set
@@ -200,13 +166,13 @@ public class ServerCategory {
 		this.category.learn(this);
 	}
 
-	public ServerCategory bind(ResultSet res) throws SQLException {
+	public AbstractServerCategory bind(ResultSet res) throws SQLException {
 		id = res.getInt("id");
 		categoryid = res.getInt("categoryid");
 		serverid = res.getInt("serverid");
 		name = res.getString("name");
 		path = res.getString("path");
-		dontScan = res.getBoolean("dontscan");
+		config = res.getString("config");
 		return this;
 	}
 
@@ -231,12 +197,12 @@ public class ServerCategory {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (!(obj instanceof AbstractServerCategory))
 			return false;
-		ServerCategory other = (ServerCategory) obj;
+		
+		AbstractServerCategory other = (AbstractServerCategory) obj;
 		if (id != other.id)
 			return false;
 		return true;
 	}
-
 }

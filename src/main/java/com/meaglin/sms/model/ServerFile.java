@@ -28,13 +28,17 @@ public class ServerFile {
 			extension, path, serverpath;
 
 	private Category category;
-	private Server server;
-	private ServerCategory servercategory;
+	private AbstractServer server;
+	private AbstractServerCategory servercategory;
 
 	public ServerFile() {
 
 	}
 
+	public ServerFile(ResultSet set) throws SQLException {
+		bind(set);
+	}
+	
 	/**
 	 * @return the id
 	 */
@@ -137,14 +141,14 @@ public class ServerFile {
 	/**
 	 * @return the server
 	 */
-	public Server getServer() {
+	public AbstractServer getServer() {
 		return server;
 	}
 
 	/**
 	 * @return the servercategory
 	 */
-	public ServerCategory getServercategory() {
+	public AbstractServerCategory getServercategory() {
 		return servercategory;
 	}
 
@@ -225,25 +229,26 @@ public class ServerFile {
 	}
 
 	/**
-	 * @param server
+	 * @param abstractServer
 	 *			the server to set
 	 */
-	public void setServer(Server server) {
-		this.server = server;
-		this.serverid = server.getId();
+	public void setServer(AbstractServer abstractServer) {
+		this.server = abstractServer;
+		this.serverid = abstractServer.getId();
 	}
 
 	/**
 	 * @param servercategory
 	 *			the servercategory to set
 	 */
-	public void setServercategory(ServerCategory servercategory) {
+	public void setServercategory(AbstractServerCategory servercategory) {
 		this.servercategory = servercategory;
 		if (servercategory == null) {
 			System.out.println(this.servercategoryid);
 		}
 		this.servercategoryid = servercategory.getId();
 		this.setCategory(getServercategory().getCategory());
+		this.setServer(getServercategory().getServer());
 	}
 
 	/**

@@ -3,7 +3,12 @@ package com.meaglin.sms.model;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.meaglin.sms.SmsServer;
 
@@ -16,9 +21,15 @@ public class Category {
 
 	private Category parent;
 	private List<Category> children;
-	private List<ServerCategory> registered;
+	private List<AbstractServerCategory> registered;
 
-	private String name, displayname;
+	private String name, displayname, config;
+
+	private Set<String> occupiedFiles = new HashSet<>();
+	
+	private int duplicationDepth = -1;
+	
+	private JSONObject configMap;
 	
 	public Category(SmsServer smsServer) {
 		controller = smsServer;
@@ -26,12 +37,17 @@ public class Category {
 		registered = new ArrayList<>();
 	}
 
-	public void learn(ServerCategory cat) {
-		registered.add(cat);
+	public Category(SmsServer smsServer, ResultSet set) throws SQLException {
+		this(smsServer);
+		bind(set);
+	}
+	
+	public void learn(AbstractServerCategory abstractServerCategory) {
+		registered.add(abstractServerCategory);
 	}
 
-	public void forget(ServerCategory cat) {
-		registered.remove(cat);
+	public void forget(AbstractServerCategory abstractServerCategory) {
+		registered.remove(abstractServerCategory);
 	}
 
 	public List<Category> getChildren() {
@@ -145,9 +161,17 @@ public class Category {
 		parentid = res.getInt("parentid");
 		name = res.getString("name");
 		displayname = res.getString("displayname");
+		config = res.getString("config");
 		return this;
 	}
 
+	public JSONObject getConfig() {
+    	if(configMap == null) {
+    		configMap = new JSONObject(config);
+    	}
+    	return configMap;
+    }
+	
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -177,4 +201,27 @@ public class Category {
 		return true;
 	}
 
+	public int getDuplicationDepth() {
+		if(duplicationDepth > 0) {
+			return duplicationDepth;
+		}
+		try {
+			duplicationDepth = getConfig().getInt("duplicationdepth");
+			if(duplicationDepth <= 0) {
+				duplicationDepth = 1;
+			}
+		} catch(JSONException e) {
+			duplicationDepth = 1;
+		}
+		return duplicationDepth;
+	}
+
+	public boolean occupyFile(String filepath) {
+		int depth = duplicationDepth;
+		return occupiedFiles.add(filepath);
+	}
+
+	public void forgetFile(String filepath) {
+		occupiedFiles.remove(filepath);
+    }
 }

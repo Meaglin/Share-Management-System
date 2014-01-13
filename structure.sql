@@ -14,14 +14,14 @@ DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `parentid` int(11) NOT NULL DEFAULT '0',
-  `name` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `displayname` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `type` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `description` text CHARACTER SET utf8 NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `displayname` varchar(255) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  `description` text NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `parentid_2` (`parentid`,`name`),
   KEY `parentid` (`parentid`)
-) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 --  Table structure for `files`
@@ -48,7 +48,7 @@ CREATE TABLE `files` (
   KEY `servercategoryid` (`servercategoryid`),
   KEY `serverid` (`serverid`),
   KEY `categoryid` (`categoryid`)
-) ENGINE=InnoDB AUTO_INCREMENT=28805098 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- ----------------------------
 --  Table structure for `history`
@@ -66,7 +66,7 @@ CREATE TABLE `history` (
   `servercategoryid` int(10) NOT NULL,
   `fileid` int(10) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=69599 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- ----------------------------
 --  Table structure for `servercategories`
@@ -76,12 +76,12 @@ CREATE TABLE `servercategories` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `categoryid` int(11) NOT NULL,
   `serverid` int(11) NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `path` text CHARACTER SET utf8 NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `path` text NOT NULL,
   `dontscan` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `categoryid` (`categoryid`,`serverid`)
-) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+  UNIQUE KEY `categoryid` (`categoryid`,`serverid`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 --  Table structure for `servers`
@@ -106,7 +106,7 @@ CREATE TABLE `servers` (
   `categorycount` int(11) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `code` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- ----------------------------
 --  Records 

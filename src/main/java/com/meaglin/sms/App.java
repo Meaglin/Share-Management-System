@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import com.meaglin.sms.model.Server;
+import com.meaglin.sms.model.AbstractServer;
 
 public class App {
 
@@ -42,7 +42,7 @@ public class App {
 		}
 		switch (command) {
 			case "fullclean":
-				for(Server s : server.servers.values()) {
+				for(AbstractServer s : server.servers.values()) {
 					if(!s.isEnabled() || s.isDisconnected()) {
 						continue;
 					}
@@ -68,7 +68,7 @@ public class App {
 				System.out.println("Cleaned up " + deleteFiles(new File(config.getProperty("mount.dir", "/thisshouldnotexists"))) + " remaining mount files.");
 				break;
 			case "clean":
-				for(Server s : server.servers.values()) {
+				for(AbstractServer s : server.servers.values()) {
 					if(!s.isEnabled() || s.isDisconnected()) {
 						continue;
 					}
@@ -84,7 +84,7 @@ public class App {
 				}
 				break;
 			case "listappmounts":
-				for(Server s : server.servers.values()) {
+				for(AbstractServer s : server.servers.values()) {
 					if(!s.isEnabled()) {
 						continue;
 					}
@@ -94,7 +94,7 @@ public class App {
 				}
 				break;
 			case "listlocks":
-				for(Server s : server.servers.values()) {
+				for(AbstractServer s : server.servers.values()) {
 					if(!s.isEnabled()) {
 						continue;
 					}
@@ -108,7 +108,7 @@ public class App {
 				}
 				break;
 			case "updatestatus":
-				for(Server s : server.servers.values()) {
+				for(AbstractServer s : server.servers.values()) {
 					if(!s.isEnabled() || s.isDisconnected()) {
 						continue;
 					}
