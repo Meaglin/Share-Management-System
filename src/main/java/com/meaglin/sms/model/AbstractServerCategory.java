@@ -1,12 +1,10 @@
 package com.meaglin.sms.model;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
+import com.meaglin.json.JSONObject;
 import com.meaglin.sms.SmsServer;
 
 public abstract class AbstractServerCategory {
@@ -33,8 +31,8 @@ public abstract class AbstractServerCategory {
 		bind(set);
 	}
 	
-	public File getDirectory() {
-		return new File(getServer().getPath(), getPath());
+	public Path getDirectory() {
+		return getServer().getPath().resolve(getPath());
 	}
 
 	/**
@@ -100,19 +98,29 @@ public abstract class AbstractServerCategory {
 		return ignores;
 	}
 
+    public String getConfigDefaults() {
+    	return "{" +
+    			"dontscan: false" +
+		"}";
+    }
+    
     public JSONObject getConfig() {
     	if(configMap == null) {
     		configMap = new JSONObject(config);
+    		configMap.defaults(getConfigDefaults());
     	}
     	return configMap;
     }
+    
+    public String getRawConfig() {
+    	if(configMap != null) {
+    		return configMap.toString();
+    	}
+    	return config;
+    }
 	
 	public boolean isDontScan() {
-		try {
-			return getConfig().getBoolean("dontscan");
-		} catch(JSONException e) {
-			return false;
-		}
+		return getConfig().getBoolean("dontscan");
 	}
 	/**
 	 * @param id
@@ -176,6 +184,10 @@ public abstract class AbstractServerCategory {
 		return this;
 	}
 
+	public abstract void registerFile(ServerFile file);
+	public abstract void forgetFile(ServerFile file);
+	public abstract ServerFile getFile(int id);
+	
 	/*
 	 * (non-Javadoc)
 	 * 

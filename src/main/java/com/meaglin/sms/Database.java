@@ -5,12 +5,16 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
 import com.meaglin.sms.model.AbstractServer;
+import com.meaglin.sms.model.AbstractServerCategory;
+import com.meaglin.sms.model.Category;
 import com.meaglin.sms.model.HistoryEntry;
 import com.meaglin.sms.model.ServerFile;
 
@@ -19,11 +23,13 @@ public class Database {
 	private final String url, username, password;
 
 	protected Connection db;
+	
+	public static boolean debug = false;
 
 	public Database(Properties config) {
 		url = "jdbc:mysql://" + config.getProperty("mysql.host", "localhost")
 				+ ":" + config.getProperty("mysql.port", "3306")
-				+ "/" + config.getProperty("mysql.database", "sms") + "?useUnicode=true&characterEncoding=utf-8";
+				+ "/" + config.getProperty("mysql.database", "sms") + "?rewriteBatchedStatements=true&useUnicode=true&characterEncoding=utf-8";
 		username = config.getProperty("mysql.username", "root");
 		password = config.getProperty("mysql.password", "");
 		try {
@@ -81,6 +87,7 @@ public class Database {
 			return result.getObject(1);
 
 		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 
 		return fallback;
@@ -101,14 +108,23 @@ public class Database {
 
 	public void insert(String table, String[] fields, List<Object[]> rows)
 			throws SQLException {
+		insert(table, fields, rows, false);
+	}
+	
+	public ResultSet insert(String table, String[] fields, List<Object[]> rows, boolean returnKeys) throws SQLException {
 		this.checkConnection();
 
 		String[] fieldPlaceholders = new String[fields.length];
 		Arrays.fill(fieldPlaceholders, "?");
 		String sql = "INSERT INTO `" + table + "` (`" + implode(fields, "`, `")
-				+ "`) VALUES (" + implode(fieldPlaceholders, ", ") + ");";
+				+ "`) VALUES (" + implode(fieldPlaceholders, ", ") + ")";
 
-		PreparedStatement stmt = this.db.prepareStatement(sql);
+		PreparedStatement stmt;
+		if(returnKeys) {
+			stmt = this.db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+		} else {
+			stmt = this.db.prepareStatement(sql);
+		}
 
 		this.db.setAutoCommit(false);
 		for (Object[] params : rows) {
@@ -118,8 +134,11 @@ public class Database {
 		stmt.executeBatch();
 		this.db.commit();
 		this.db.setAutoCommit(true);
+		if(returnKeys) {
+			return stmt.getGeneratedKeys();
+		}
 		this.collect(null, stmt, null);
-		// stmt.close();
+		return null;
 	}
 
 	public void insertOne(String table, String[] fields, Object... params)
@@ -153,13 +172,15 @@ public class Database {
 		return buffer.substring(separator.length()).trim();
 	}
 
-	private static final String UPDATE_SERVER = "UPDATE servers SET status = ?, lastupdate = ?, lastchange = ?, filecount = ?, categorycount = ?, disconnected = ? WHERE id = ?";
-	private static final String UPDATE_FILES = "UPDATE files SET flag = ?, duplicate = ?, path = ?, modified_at = ? WHERE id = ?";
+	private static final String UPDATE_SERVER = "UPDATE servers SET config = ?,status = ?, lastupdate = ?, lastchange = ?, filecount = ?, categorycount = ?, disconnected = ? WHERE id = ?";
+	private static final String UPDATE_SERVER_CATEGORY = "UPDATE servercategories SET config = ? WHERE id = ?";
+	private static final String UPDATE_CATEGORY = "UPDATE categories SET config = ? WHERE id = ?";
+	private static final String UPDATE_FILES = "UPDATE files SET parentid = ?, flag = ?, duplicate = ?, path = ?, modified_at = ? WHERE id = ?";
 	private static final String DELETE_FILES = "DELETE FROM files WHERE id = ?";
 
 	public void save(AbstractServer abstractServer) {
 		try {
-			updateQuery(UPDATE_SERVER, abstractServer.getStatus(),
+			updateQuery(UPDATE_SERVER, abstractServer.getRawConfig(), abstractServer.getStatus(),
 					abstractServer.getLastupdate(), abstractServer.getLastchange(),
 					abstractServer.getFilecount(), abstractServer.getCategorycount(),
 					abstractServer.isDisconnected(), abstractServer.getId());
@@ -167,9 +188,57 @@ public class Database {
 			e.printStackTrace();
 		}
 	}
+	public void saveList(Collection<AbstractServerCategory> categories) {
+		try {
+			this.checkConnection();
+			PreparedStatement updatestmt = this.db
+					.prepareStatement(UPDATE_SERVER_CATEGORY);
+
+			this.db.setAutoCommit(false);
+			
+			for (AbstractServerCategory cat : categories) {
+					this.bindParams(updatestmt, cat.getRawConfig(), cat.getId());
+					updatestmt.addBatch();
+			}
+			
+			updatestmt.executeBatch();
+			this.db.commit();
+			this.db.setAutoCommit(true);
+			updatestmt.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	public void saveList(List<Category> categories) {
+		try {
+			this.checkConnection();
+			PreparedStatement updatestmt = this.db
+					.prepareStatement(UPDATE_CATEGORY);
+			
+			this.db.setAutoCommit(false);
+			
+			for (Category cat : categories) {
+				this.bindParams(updatestmt, cat.getRawConfig(), cat.getId());
+				updatestmt.addBatch();
+			}
+			
+			updatestmt.executeBatch();
+			this.db.commit();
+			this.db.setAutoCommit(true);
+			updatestmt.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
 
 	public void save(List<ServerFile> files) {
 		List<Object[]> params = new ArrayList<>();
+		List<ServerFile> newFiles = new ArrayList<>();
+		ResultSet set = null;
+		if(files.size() == 0) {
+			return;
+		}
+		long s = System.currentTimeMillis();
 		try {
 
 			this.checkConnection();
@@ -179,30 +248,53 @@ public class Database {
 			this.db.setAutoCommit(false);
 			for (ServerFile file : files) {
 				if (file.getId() != 0) {
-					this.bindParams(updatestmt, file.getFlag(), file.isDuplicate(), file.getPath(), file.getModifiedAt(), file.getId());
+					this.bindParams(updatestmt, file.getParentid(), file.getFlag(), file.isDuplicate(), file.getPath(), file.getModifiedAt(), file.getId());
 					updatestmt.addBatch();
 				} else {
-					params.add(new Object[] { file.getCreatedAt(), file.getModifiedAt() ,file.getServerid(),
+					params.add(new Object[] { file.getCreatedAt(), file.getModifiedAt() ,
+							file.getParentid(), file.getLevel(), file.getServerid(),
 							file.getServercategoryid(), file.getCategoryid(),
 							file.getName(), file.getDisplayname(),
-							file.getDirectory(), file.getDisplaydirectory(),
 							file.getType(), file.getFlag(), file.isDuplicate(),
 							file.getExtension(), file.getPath(),
 							file.getServerpath() });
+					newFiles.add(file);
 				}
 			}
-
+			if(debug) {
+				System.out.println("Make " + (System.currentTimeMillis() - s));
+			}
+			s = System.currentTimeMillis();
+			
 			updatestmt.executeBatch();
 			this.db.commit();
 			this.db.setAutoCommit(true);
 			updatestmt.close();
+			
+			if(debug) {
+				System.out.println("Update " + (System.currentTimeMillis() - s));
+			}
+			s = System.currentTimeMillis();
 
-			insert("files", new String[] { "created_at", "modified_at", "serverid", "servercategoryid",
-					"categoryid", "name", "displayname", "directory",
-					"displaydirectory", "type", "flag", "duplicate", "extension", "path",
-					"serverpath" }, params);
+			set = insert("files", new String[] { "created_at", "modified_at", 
+					"parentid", "level", "serverid", "servercategoryid",
+					"categoryid", "name", "displayname",
+					"type", "flag", "duplicate", "extension", "path",
+					"serverpath" }, params, true);
+			int index = 0;
+			while(set.next()) {
+				newFiles.get(index).setId(set.getInt(1));
+				index += 1;
+			}
+			
+			if(debug) {
+				System.out.println("Create " + (System.currentTimeMillis() - s));
+			}
+			s = System.currentTimeMillis();
 		} catch (Exception ex) {
-
+			ex.printStackTrace();
+		} finally {
+			collect(null, null, set);
 		}
 
 	}
@@ -224,7 +316,7 @@ public class Database {
 			this.db.setAutoCommit(true);
 			updatestmt.close();
 		} catch (Exception ex) {
-
+			ex.printStackTrace();
 		}
 	}
 	

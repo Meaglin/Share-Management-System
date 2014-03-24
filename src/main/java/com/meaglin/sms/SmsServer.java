@@ -20,8 +20,8 @@ import com.meaglin.sms.model.AbstractServer;
 import com.meaglin.sms.model.Category;
 import com.meaglin.sms.model.HistoryEntry;
 import com.meaglin.sms.model.ServerFile;
-import com.meaglin.sms.model.simple.Server;
-import com.meaglin.sms.model.simple.ServerCategory;
+import com.meaglin.sms.model.tree.Server;
+import com.meaglin.sms.model.tree.ServerCategory;
 
 public class SmsServer {
 
@@ -116,8 +116,9 @@ public class SmsServer {
 			}
 			try {
 				server.refreshFiles();
+				long s = System.currentTimeMillis();
 				server.saveChanges();
-				server.log("Saved " + server.getChangeCount() + " changes.");
+				server.log("Saved " + server.getChangeCount() + " changes[" + (System.currentTimeMillis() - s) + "]");
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
@@ -129,13 +130,30 @@ public class SmsServer {
 			}
 			try {
 				server.updateServerStats();
+				long s = System.currentTimeMillis();
 				server.updateFileLinks();
-				server.log("Updated " + server.getChangeCount() + " filelinks.");
+				server.log("Updated " + server.getChangeCount() + " filelinks[" + (System.currentTimeMillis() - s) + "]");
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
 		}
 		saveHistory();
+	}
+	
+	public void testShares() {
+		for (AbstractServer server : servers.values()) {
+			if(!server.isEnabled()) {
+				continue;
+			}
+			try {
+				server.refreshFiles();
+				server.saveChanges();
+				server.log("Saved " + server.getChangeCount() + " changes.");
+			} catch (Throwable t) {
+				t.printStackTrace();
+			}
+		}
+
 	}
 	
 	public void track(ServerFile changedFile) {

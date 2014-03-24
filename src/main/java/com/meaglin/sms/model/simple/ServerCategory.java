@@ -36,7 +36,7 @@ public class ServerCategory extends AbstractServerCategory {
 		}
 		ServerFile sf;
 		File[] dirfiles;
-		getServer().log("Parsing " + getDirectory().getParent() + "/" + getDirectory().getName());
+		getServer().log("Parsing " + getDirectory().getParent() + "/" + getDirectory().getFileName());
 		dirs: for (File directory : getFiles()) {
 			if (!directory.isDirectory()) {
 				continue; // only dirs.
@@ -58,8 +58,8 @@ public class ServerCategory extends AbstractServerCategory {
 				sf.setServer(getServer());
 				sf.setName(sub.getName());
 				sf.setDisplayname(sub.getName());
-				sf.setDirectory(directory.getName());
-				sf.setDisplaydirectory(directory.getName());
+//				sf.setDirectory(directory.getName());
+//				sf.setDisplaydirectory(directory.getName());
 				sf.setServerpath(sub.getPath());
 				sf.setFlag(ServerFile.CREATED);
 				sf.setPath("");
@@ -78,7 +78,25 @@ public class ServerCategory extends AbstractServerCategory {
 	}
 
 	private File[] getFiles() {
-		return getDirectory().listFiles();
+		return new File[0]; // TODO: fixme
 	}
+
+	@Override
+    public void registerFile(ServerFile file) {
+	    // TODO Auto-generated method stub
+	    
+    }
+
+	@Override
+    public void forgetFile(ServerFile file) {
+	    // TODO Auto-generated method stub
+	    
+    }
+
+	@Override
+    public ServerFile getFile(int id) {
+	    // TODO Auto-generated method stub
+	    return null;
+    }
 
 }

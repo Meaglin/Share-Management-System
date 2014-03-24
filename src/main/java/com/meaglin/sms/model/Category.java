@@ -7,9 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
+import com.meaglin.json.JSONObject;
 import com.meaglin.sms.SmsServer;
 
 public class Category {
@@ -26,8 +24,6 @@ public class Category {
 	private String name, displayname, config;
 
 	private Set<String> occupiedFiles = new HashSet<>();
-	
-	private int duplicationDepth = -1;
 	
 	private JSONObject configMap;
 	
@@ -165,11 +161,25 @@ public class Category {
 		return this;
 	}
 
-	public JSONObject getConfig() {
+    public String getConfigDefaults() {
+    	return "{" +
+    			"duplicationdepth: 1" +
+		"}";
+    }
+    
+    public JSONObject getConfig() {
     	if(configMap == null) {
     		configMap = new JSONObject(config);
+    		configMap.defaults(getConfigDefaults());
     	}
     	return configMap;
+    }
+    
+    public String getRawConfig() {
+    	if(configMap != null) {
+    		return configMap.toString();
+    	}
+    	return config;
     }
 	
 	/*
@@ -202,26 +212,33 @@ public class Category {
 	}
 
 	public int getDuplicationDepth() {
-		if(duplicationDepth > 0) {
-			return duplicationDepth;
-		}
-		try {
-			duplicationDepth = getConfig().getInt("duplicationdepth");
-			if(duplicationDepth <= 0) {
-				duplicationDepth = 1;
-			}
-		} catch(JSONException e) {
+		int duplicationDepth = getConfig().getInt("duplicationdepth");
+		if(duplicationDepth <= 0) {
 			duplicationDepth = 1;
 		}
 		return duplicationDepth;
 	}
 
-	public boolean occupyFile(String filepath) {
-		int depth = duplicationDepth;
-		return occupiedFiles.add(filepath);
+	public boolean occupyFile(ServerFile file) {
+		int depth = getDuplicationDepth();
+		if(file.getLevel() > depth) {
+			return true;
+		}
+		if((file.getLevel() == depth || !file.getType().equals("directory"))
+				&& !occupiedFiles.add(file.getPath())) {
+			if(file.isDuplicate()) {
+				return false;
+			}
+			file.setDuplicate(true);
+		}
+		return true;
 	}
 
-	public void forgetFile(String filepath) {
-		occupiedFiles.remove(filepath);
+	public void forgetFile(ServerFile file) {
+		int depth = getDuplicationDepth();
+		if(file.getLevel() > depth) {
+			return;
+		}
+		occupiedFiles.remove(file.getPath());
     }
 }

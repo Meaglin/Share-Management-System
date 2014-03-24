@@ -16,8 +16,8 @@ CREATE TABLE `categories` (
   `parentid` int(11) NOT NULL DEFAULT '0',
   `name` varchar(255) NOT NULL,
   `displayname` varchar(255) NOT NULL,
-  `type` varchar(255) NOT NULL,
   `description` text NOT NULL,
+  `config` text NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `parentid_2` (`parentid`,`name`),
   KEY `parentid` (`parentid`)
@@ -31,6 +31,8 @@ CREATE TABLE `files` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `created_at` bigint(20) NOT NULL,
   `modified_at` bigint(20) NOT NULL,
+  `parentid` int(11) NOT NULL,
+  `level` int(11) NOT NULL,
   `serverid` int(11) NOT NULL,
   `servercategoryid` int(11) NOT NULL,
   `categoryid` int(11) NOT NULL,
@@ -38,8 +40,6 @@ CREATE TABLE `files` (
   `duplicate` int(1) NOT NULL DEFAULT '0',
   `name` varchar(255) CHARACTER SET utf8 NOT NULL,
   `displayname` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `directory` varchar(255) CHARACTER SET utf8 NOT NULL,
-  `displaydirectory` varchar(255) CHARACTER SET utf8 NOT NULL,
   `type` varchar(255) CHARACTER SET utf8 NOT NULL,
   `extension` varchar(255) CHARACTER SET utf8 NOT NULL,
   `path` text CHARACTER SET utf8 NOT NULL,
@@ -78,9 +78,9 @@ CREATE TABLE `servercategories` (
   `serverid` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
   `path` text NOT NULL,
-  `dontscan` tinyint(1) NOT NULL DEFAULT '0',
+  `config` text NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `categoryid` (`categoryid`,`serverid`)
+  KEY `categoryid` (`categoryid`,`serverid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
 -- ----------------------------
@@ -93,7 +93,6 @@ CREATE TABLE `servers` (
   `displayname` varchar(255) CHARACTER SET utf8 NOT NULL,
   `code` varchar(4) CHARACTER SET utf8 NOT NULL,
   `description` text CHARACTER SET utf8 NOT NULL,
-  `type` varchar(255) CHARACTER SET utf8 NOT NULL,
   `config` text CHARACTER SET utf8 NOT NULL,
   `status` varchar(255) CHARACTER SET utf8 NOT NULL,
   `disconnectcount` int(10) NOT NULL DEFAULT '0',

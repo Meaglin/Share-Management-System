@@ -1,9 +1,11 @@
 package com.meaglin.sms.model;
 
-import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -16,17 +18,18 @@ public class ServerFile {
 	public static final int UP_TO_DATE = 3;
 	public static final int DELETED = 4;
 	public static final int DUPLICATE = 5;
-	private int id, serverid, servercategoryid, categoryid;
+	private int id, parentid, serverid, servercategoryid, categoryid;
 
-	private int flag;
+	private int flag, level;
 	
 	private boolean duplicate;
 	
 	private long createdAt, modifiedAt;
 
-	private String name, displayname, directory, displaydirectory, type,
+	private String name, displayname, type,
 			extension, path, serverpath;
 
+	private ServerFile parent;
 	private Category category;
 	private AbstractServer server;
 	private AbstractServerCategory servercategory;
@@ -106,17 +109,24 @@ public class ServerFile {
 	 * @return the path
 	 */
 	public String getPath() {
-		if (path == null || path.trim().length() == 0) {
-			generatePath();
-		}
-		return path;
+		return getPath(isDuplicate());
 	}
-
-	public void generatePath() {
+	
+	public String getPath(boolean duplicate) {
 		if (category == null) {
 			System.out.println("missing category");
 		}
-		path = getCategory().getPath() + "/" + getDisplaydirectory() + "/" + (isDuplicate() ? "[" + getServer().getCode() + "]" : "") + getDisplayname();
+		if(getParent() != null) {
+			path = getParent().getPath();
+		} else {
+			path = getCategory().getPath();
+		}
+		if(getExtension() != null) {
+			path += "/" + getDisplayname().substring(0, getDisplayname().length() - getExtension().length()) + (duplicate ? "[" + getServer().getCode() + "]" : "") + getExtension();
+		} else {
+			path += "/" + getDisplayname() + (duplicate ? "[" + getServer().getCode() + "]" : "");
+		}
+		return path;
 	}
 
 	/**
@@ -126,9 +136,12 @@ public class ServerFile {
 		return serverpath;
 	}
 
-	public File getServerFile() {
-		return new File(this.getServercategory().getDirectory(),
-				this.getDirectory() + "/" + this.getName());
+	public Path getServerFile() {
+		if(getParent() != null) {
+			return getParent().getServerFile().resolve(getName());
+		} else {
+			return getServercategory().getDirectory().resolve(getName());
+		}
 	}
 
 	/**
@@ -252,36 +265,6 @@ public class ServerFile {
 	}
 
 	/**
-	 * @return the directory
-	 */
-	public String getDirectory() {
-		return directory;
-	}
-
-	/**
-	 * @param directory
-	 *			the directory to set
-	 */
-	public void setDirectory(String directory) {
-		this.directory = directory;
-	}
-
-	/**
-	 * @return the displaydirectory
-	 */
-	public String getDisplaydirectory() {
-		return displaydirectory;
-	}
-
-	/**
-	 * @param displaydirectory
-	 *			the displaydirectory to set
-	 */
-	public void setDisplaydirectory(String displaydirectory) {
-		this.displaydirectory = displaydirectory;
-	}
-
-	/**
 	 * @return the duplicate
 	 */
     public boolean isDuplicate() {
@@ -324,10 +307,63 @@ public class ServerFile {
 	}
 
 	
+	/**
+	 * @return the parentid
+	 */
+	public int getParentid() {
+		return parentid;
+	}
+
+	/**
+	 * @return the parent
+	 */
+	public ServerFile getParent() {
+		if(parent == null && getParentid() != 0) {
+			setParent(getServercategory().getFile(getParentid()));
+		}
+		return parent;
+	}
+
+	/**
+	 * @param parentid the parentid to set
+	 */
+	public void setParentid(int parentid) {
+		this.parentid = parentid;
+	}
+
+	/**
+	 * @param parent the parent to set
+	 */
+	public void setParent(ServerFile parent) {
+		this.parent = parent;
+		if(parent != null) {
+			setParentid(parent.getId());
+			setLevel(parent.getLevel() + 1);
+		} else {
+			setLevel(1);
+		}
+	}
+
+
+	/**
+	 * @return the level
+	 */
+	public int getLevel() {
+		return level;
+	}
+
+	/**
+	 * @param level the level to set
+	 */
+	public void setLevel(int level) {
+		this.level = level;
+	}
+
+
 	// TODO: we are not using this, remove?
-	private static final String[] columns = new String[] { "created_at", "modified_at", "serverid",
+	private static final String[] columns = new String[] { "created_at", "modified_at", "parentid", "serverid",
 			"servercategoryid", "categoryid", "name", "displayname",
-			"directory", "displaydirectory", "type", "flag", "duplicate", "extension",
+			"type", "flag", "duplicate", "extension",
 			"path", "serverpath" };
 
 	public void save() {
@@ -338,10 +374,9 @@ public class ServerFile {
 		Database db = getServer().getController().getDb();
 		if (getId() == 0) { // new
 			try {
-				db.insertOne("files", columns, getCreatedAt(), getModifiedAt(), getServerid(),
+				db.insertOne("files", columns, getCreatedAt(), getModifiedAt(), getParentid(), getServerid(),
 						getServercategoryid(), getCategoryid(), getName(),
-						getDisplayname(), getDirectory(),
-						getDisplaydirectory(), getType(), getFlag(),
+						getDisplayname(), getType(), getFlag(),
 						isDuplicate(), getExtension(), getPath(), getServerpath());
 			} catch (SQLException e) {
 				e.printStackTrace();
@@ -359,6 +394,8 @@ public class ServerFile {
 
 	public ServerFile bind(ResultSet res) throws SQLException {
 		id = res.getInt("id");
+		parentid = res.getInt("parentid");
+		level = res.getInt("level");
 		serverid = res.getInt("serverid");
 		servercategoryid = res.getInt("servercategoryid");
 		categoryid = res.getInt("categoryid");
@@ -366,8 +403,6 @@ public class ServerFile {
 
 		name = res.getString("name");
 		displayname = res.getString("displayname");
-		setDirectory(res.getString("directory"));
-		setDisplaydirectory(res.getString("displaydirectory"));
 		type = res.getString("type");
 		extension = res.getString("extension");
 //		path = res.getString("path");
@@ -384,45 +419,54 @@ public class ServerFile {
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ServerFile other = (ServerFile) obj;
-		if (id == 0) // newly created objects.
-			return this.getPath().equals(other.getPath())
-					&& this.getName().equals(other.getName());
+		}
 
-		if (id != other.id)
+		if (obj == null) {
 			return false;
+		}
+		
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		ServerFile other = (ServerFile) obj;
+		// newly created objects.
+		if (id == 0 || other.id == 0) {
+			return (this.getParent() == null || this.getParent().equals(other.getParent()))
+					&& this.getServercategory().equals(other.getServercategory())
+					&& this.getLevel() == other.getLevel()
+					&& this.getName().equals(other.getName());
+		}
+
+		if (id != other.id) {
+			return false;
+		}
 
 		return true;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.id;
+		return this.getPath().hashCode();
 	}
 
-	public void tryDelete(String rootFolder) {
-		File file = new File(rootFolder + "/" + getPath());
+	public void delete(String rootFolder) throws IOException {
 		try {
-			Files.delete(file.toPath());
-		} catch (IOException e) {
-			e.printStackTrace();
+			Files.delete(Paths.get(rootFolder, getPath()));
+		} catch(FileNotFoundException | NoSuchFileException e) {
+			// suppress
 		}
 
 		
 		// TODO: find a better way to delete parent directory.
-		try {
-			Files.delete(file.getParentFile().toPath());
-		} catch (DirectoryNotEmptyException e) {
-			// Crude, but works.
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			Files.delete(file.getParentFile().toPath());
+//		} catch (DirectoryNotEmptyException e) {
+//			// Crude, but works.
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
 	}
 
 }

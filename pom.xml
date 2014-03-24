@@ -28,13 +28,6 @@
       <type>jar</type>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20131018</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
   <build>
     <plugins>

@@ -1,14 +1,19 @@
 package com.meaglin.sms;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.meaglin.sms.model.AbstractServer;
 
@@ -20,11 +25,12 @@ public class App {
 
 	}
 
-	public void start(String[] args) {
+	public void start(String[] args) throws IOException {
+		long systemStart = System.currentTimeMillis();
 		config = new Properties();
-		File configfile = new File("server.properties");
+		
 		try {
-			InputStream stream = Files.newInputStream(configfile.toPath(),
+			InputStream stream = Files.newInputStream(Paths.get("server.properties"),
 					StandardOpenOption.READ);
 			config.load(stream);
 			stream.close();
@@ -64,8 +70,8 @@ public class App {
 						}
 					}
 				}
-				System.out.println("Cleaned up " + deleteFiles(new File(config.getProperty("mount.categorydir", "/thisshouldnotexists"))) + " remaining category files.");
-				System.out.println("Cleaned up " + deleteFiles(new File(config.getProperty("mount.dir", "/thisshouldnotexists"))) + " remaining mount files.");
+				System.out.println("Cleaned up " + deleteFiles(Paths.get(config.getProperty("mount.categorydir"))) + " remaining category files.");
+				System.out.println("Cleaned up " + deleteFiles(Paths.get(config.getProperty("mount.dir"))) + " remaining mount files.");
 				break;
 			case "clean":
 				for(AbstractServer s : server.servers.values()) {
@@ -123,27 +129,55 @@ public class App {
 			case "update":
 				server.updateShares();
 				break;
+			case "test":
+				server.testShares();
+				break;
 			default:
 				System.out.println("Options: fullclean|clean|listmounts|listappmounts|listlocks|updatestatus|update");
 				break;
 		}
+		
+		System.out.println("---------");
+		System.out.println("Total runtime: " + (System.currentTimeMillis() - systemStart));
+		System.out.println("---------");
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		App app = new App();
 		app.start(args);
 	}
 	
-	public int deleteFiles(File start) {
-		File[] list = start.listFiles();
-		int cnt = 0;
-		if(list != null) {
-			for(File sub : list) {
-				cnt += deleteFiles(sub);
-				sub.delete();
-				cnt += 1;
-			}
-		}
-		return cnt;
+	public int deleteFiles(Path start) throws IOException {
+		final AtomicInteger cnt = new AtomicInteger();
+		Files.walkFileTree(start, new SimpleFileVisitor<Path>(){
+	        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+	            Files.delete(file);
+	            cnt.incrementAndGet();
+	            return FileVisitResult.CONTINUE;
+	        }
+
+	        @Override
+	        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+	            // try to delete the file anyway, even if its attributes
+	            // could not be read, since delete-only access is
+	            // theoretically possible
+	            Files.delete(file);
+	            cnt.incrementAndGet();
+	            return FileVisitResult.CONTINUE;
+	        }
+
+	        @Override
+	        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+	            if (exc == null) {
+	                Files.delete(dir);
+	                cnt.incrementAndGet();
+	                return FileVisitResult.CONTINUE;
+	            } else {
+	                // directory iteration failed; propagate exception
+	                throw exc;
+	            }
+	        }
+	    });
+		return cnt.get();
 	}
 }

@@ -1,10 +1,12 @@
 package com.meaglin.sms.model;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -14,11 +16,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
+import com.meaglin.json.JSONObject;
 import com.meaglin.sms.SmsServer;
-import com.meaglin.sms.model.simple.ServerCategory;
 
 public abstract class AbstractServer {
 
@@ -42,13 +41,20 @@ public abstract class AbstractServer {
 	public AbstractServer(SmsServer smsServer) {
 		controller = smsServer;
 		categories = new HashMap<>();
+		init();
 	}
 	
 	public AbstractServer(SmsServer smsServer, ResultSet set) throws SQLException {
-		this(smsServer);
+		controller = smsServer;
+		categories = new HashMap<>();
 		bind(set);
+		init();
 	}
-
+	
+	protected void init() {
+		
+	}
+	
 	public void log(String message) {
 		// TODO: make proper logger.
 		System.out.println("[" + getName() + "]" + message);
@@ -80,11 +86,11 @@ public abstract class AbstractServer {
 		return reachable;
 	}
 
-	public File getPath() {
+	public Path getPath() {
 		if (isWindows()) {
-			return new File("\\\\" + getIp());
+			return Paths.get("\\\\" + getIp());
 		} else {
-			return new File(getController().getConfig()
+			return Paths.get(getController().getConfig()
 					.getProperty("mount.dir") + "/" + getName());
 		}
 	}
@@ -114,12 +120,12 @@ public abstract class AbstractServer {
 		return dirs;
 	}
 
-	public void addServerCategory(ServerCategory toAdd) {
+	public void addServerCategory(AbstractServerCategory toAdd) {
 		categories.put(toAdd.getId(), toAdd);
 		this.setCategorycount(categories.size());
 	}
 
-	public void mountFolders() {
+	public void mountFolders() throws IOException {
 		if (isWindows()) {
 			mountOnWindows();
 		} else {
@@ -127,7 +133,7 @@ public abstract class AbstractServer {
 		}
 	}
 
-	public void mountOnLinux() {
+	public void mountOnLinux() throws IOException {
 		if (!getMountType().equalsIgnoreCase("smb")
 				&& !getMountType().equalsIgnoreCase("nfs")) {
 			throw new RuntimeException("Nope, invalid mount type " + getMountType()
@@ -139,7 +145,9 @@ public abstract class AbstractServer {
 				if(isMounted("//" + getIp() + "/" + dir, getPath() + "/" + dir)) {
 					continue;
 				}
-				(new File(getPath() + "/" + dir)).mkdirs();
+				Path path = getPath().resolve(dir);
+				Files.createDirectories(path);
+				
 				ProcessBuilder task = new ProcessBuilder(new String[] {
 						"/bin/mount", "-t", "cifs", "//" + getIp() + "/" + dir,
 						getPath() + "/" + dir, "-o",
@@ -162,7 +170,9 @@ public abstract class AbstractServer {
 				if(isMounted(getIp() + ":/" + dir, getPath() + "/" + dir)) {
 					continue;
 				}
-				(new File(getPath() + "/" + dir)).mkdirs();
+				Path path = getPath().resolve(dir);
+				Files.createDirectories(path);
+				
 				ProcessBuilder task = new ProcessBuilder(new String[] {
 						"/bin/mount", "-t", "nfs", getIp() + ":/" + dir,
 						getPath() + "/" + dir, "-o",
@@ -201,17 +211,17 @@ public abstract class AbstractServer {
 	 * This doesn't actually mount anything.
 	 * 
 	 * Testing only ;)
+	 * @throws IOException 
 	 */
-	public void mountOnWindows() {
+	public void mountOnWindows() throws IOException {
 		for (String dir : this.getMountFolders()) {
-			File directory = new File(getController().getConfig().getProperty(
-					"mount.testdir")
-					+ "/mount/" + getName() + "/" + dir);
-			directory.mkdirs();
+			Path path = Paths.get(getController().getConfig().getProperty(
+					"mount.testdir"), "mount", getName(), dir);
+			Files.createDirectories(path);
 		}
 	}
 	
-	public void unmountFolders() {
+	public void unmountFolders() throws IOException {
 		if (isWindows()) {
 			unmountFoldersOnWindows();
 		} else {
@@ -219,12 +229,11 @@ public abstract class AbstractServer {
 		}
 	}
 
-	private void unmountFoldersOnWindows() {
+	private void unmountFoldersOnWindows() throws IOException {
 		for (String dir : this.getMountFolders()) {
-			File directory = new File(getController().getConfig().getProperty(
-					"mount.testdir")
-					+ "/mount/" + getName() + "/" + dir);
-			directory.delete();
+			Path path = Paths.get(getController().getConfig().getProperty(
+					"mount.testdir"), "mount", getName(), dir);
+			Files.deleteIfExists(path);
 		}
 	}
 
@@ -255,11 +264,11 @@ public abstract class AbstractServer {
 	
 	public abstract void disconnect();
 	
-	public abstract void refreshFiles();
+	public abstract void refreshFiles() throws IOException;
 	public abstract void saveChanges();
 
 	public abstract void updateServerStats();
-	public abstract void updateFileLinks();
+	public abstract void updateFileLinks() throws IOException;
 	
 	public abstract int getChangeCount();
 
@@ -352,19 +361,11 @@ public abstract class AbstractServer {
 	}
 
 	public String getMountType() {
-		try {
-			return getConfig().getJSONObject("mount").getString("type");
-		} catch(JSONException e) {
-			return "smb";
-		}
+		return getConfig().getJSONObject("mount").getString("type");
 	}
 
 	public String getMountOptions() {
-		try {
-			return getConfig().getJSONObject("mount").getString("options");
-		} catch(JSONException e) {
-			return "ro";
-		}
+		return getConfig().getJSONObject("mount").getString("options");
 	}
 
 	/**
@@ -508,7 +509,6 @@ public abstract class AbstractServer {
 		setDisconnected(res.getBoolean("disconnected"));
 		config = res.getString("config");
 		ip = res.getString("ip");
-		type = res.getString("type");
 		setCode(res.getString("code"));
 		return this;
 	}
@@ -527,17 +527,37 @@ public abstract class AbstractServer {
 	    this.justReconnected = justReconnected;
     }
     
+    public String getConfigDefaults() {
+    	return "{" +
+				"mount: {" +
+				"dir: ''," +
+				"options: 'ro'," +
+				"type: 'smb'," +
+				"testdir: ''" +
+			"}" +
+		"}";
+    }
+    
     public JSONObject getConfig() {
     	if(configMap == null) {
     		configMap = new JSONObject(config);
+    		configMap.defaults(getConfigDefaults());
     	}
     	return configMap;
     }
 
+    public String getRawConfig() {
+    	if(configMap != null) {
+    		return configMap.toString();
+    	}
+    	return config;
+    }
+    
 	public void save() {
 		if (id == 0) { // We never create 'servers' inside sms.
 			return;
 		}
+		getController().getDb().saveList(getCategories());
 		getController().getDb().save(this);
 	}
 

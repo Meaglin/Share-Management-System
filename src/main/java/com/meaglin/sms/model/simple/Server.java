@@ -1,8 +1,9 @@
 package com.meaglin.sms.model.simple;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -88,7 +89,11 @@ public class Server extends AbstractServer {
 		}
 		log("Loading...");
 
-		mountFolders();
+		try {
+	        mountFolders();
+        } catch (IOException e) {
+	        e.printStackTrace();
+        }
 
 		List<ServerFile> files = getFiles();
 		log("Loaded " + files.size() + " from db.");
@@ -105,7 +110,8 @@ public class Server extends AbstractServer {
 			ServerFile found = null;
 			for (ServerFile file : files) {
 				if (file.getName().equals(newFile.getName())
-						&& file.getDirectory().equals(newFile.getDirectory())) {
+//						&& file.getDirectory().equals(newFile.getDirectory())
+						) {
 					found = file;
 					break;
 				}
@@ -156,7 +162,7 @@ public class Server extends AbstractServer {
 		this.save();
 	}
 
-	public void updateFileLinks() {
+	public void updateFileLinks() throws IOException {
 		if (isWindows()) {
 			updateFileLinksOnWindows();
 		} else {
@@ -164,7 +170,7 @@ public class Server extends AbstractServer {
 		}
 	}
 
-	public void updateFileLinksOnWindows() {
+	public void updateFileLinksOnWindows() throws IOException {
 		if (currentFiles == null) {
 			currentFiles = getFiles();
 		}
@@ -174,7 +180,7 @@ public class Server extends AbstractServer {
 		List<ServerFile> toDelete = new ArrayList<>();
 		for (ServerFile file : currentFiles) {
 			if (file.getFlag() == ServerFile.DELETED) {
-				file.tryDelete(getController().getConfig().getProperty(
+				file.delete(getController().getConfig().getProperty(
 						"mount.testdir")
 						+ "/categories/");
 				toDelete.add(file);
@@ -187,18 +193,13 @@ public class Server extends AbstractServer {
 					&& serverfile.getFlag() != ServerFile.UPDATED) {
 				continue;
 			}
-			File file = new File(getController().getConfig().getProperty(
-					"mount.testdir")
-					+ "/categories/" + serverfile.getPath());
-			file.getParentFile().mkdirs();
-			try {
-				Files.write(file.toPath(), serverfile.getServerpath()
-						.getBytes(), StandardOpenOption.CREATE,
-						StandardOpenOption.WRITE,
-						StandardOpenOption.TRUNCATE_EXISTING);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			Path path = Paths.get(getController().getConfig().getProperty(
+					"mount.testdir"), "categories",serverfile.getPath());
+			Files.createDirectories(path.getParent());
+			Files.write(path, serverfile.getServerpath()
+					.getBytes(), StandardOpenOption.CREATE,
+					StandardOpenOption.WRITE,
+					StandardOpenOption.TRUNCATE_EXISTING);
 			// Prevent history spam after reconnects.
 			if(!isJustReconnected()) {
 				getController().track(serverfile);
@@ -210,7 +211,7 @@ public class Server extends AbstractServer {
 		this.saveChanges();
 	}
 
-	public void updateFileLinksOnLinux() {
+	public void updateFileLinksOnLinux() throws IOException {
 		if(isDisconnected()) {
 			return;
 		}
@@ -227,7 +228,7 @@ public class Server extends AbstractServer {
 		List<ServerFile> toDelete = new ArrayList<>();
 		for (ServerFile file : currentFiles) {
 			if (file.getFlag() == ServerFile.DELETED) {
-				file.tryDelete(rootDir);
+				file.delete(rootDir);
 				toDelete.add(file);
 				getController().track(file);
 				getController().forgetFile(file.getPath());
@@ -249,7 +250,6 @@ public class Server extends AbstractServer {
 					continue;
 				}
 				serverfile.setDuplicate(true);
-				serverfile.generatePath(); // Update the path.
 				if(!getController().occupyFile(serverfile.getPath())) {
 					serverfile.setFlag(ServerFile.DUPLICATE);
 					toUpdate.add(serverfile);
@@ -257,15 +257,11 @@ public class Server extends AbstractServer {
 					continue;
 				}
 			}
-			
-			File file = new File(rootDir + "/" + serverfile.getPath());
-			file.getParentFile().mkdirs();
-			try {
-				Files.createSymbolicLink(file.toPath(), serverfile
-						.getServerFile().toPath());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			Path path = Paths.get(rootDir, serverfile.getPath());
+			// TODO: unneeded
+//			Files.createDirectories(path.getParent());
+
+			Files.createSymbolicLink(path, serverfile.getServerFile());
 			// Prevent history spam after reconnects.
 			if(!isJustReconnected()) {
 				getController().track(serverfile);
@@ -280,14 +276,22 @@ public class Server extends AbstractServer {
 	public void disconnect() {
 		this.setDisconnected(true);
 		log("disconnecting...");
-		deleteFileLinks();
+		try {
+	        deleteFileLinks();
+        } catch (IOException e1) {
+	        e1.printStackTrace();
+        }
 		log("deleted file links.");
-		unmountFolders();
+		try {
+	        unmountFolders();
+        } catch (IOException e) {
+	        e.printStackTrace();
+        }
 		log("unmounted shares");
 		getController().track(this);
 	}
 
-	public void deleteFileLinks() {
+	public void deleteFileLinks() throws IOException {
 		if (isWindows()) {
 			deleteFileLinksOnWindows();
 		} else {
@@ -295,7 +299,7 @@ public class Server extends AbstractServer {
 		}
 	}
 
-	private void deleteFileLinksOnWindows() {
+	private void deleteFileLinksOnWindows() throws IOException {
 		if (currentFiles == null) {
 			currentFiles = getFiles();
 		}
@@ -307,7 +311,7 @@ public class Server extends AbstractServer {
 															  // yet ;).
 				continue;
 			}
-			serverfile.tryDelete(getController().getConfig().getProperty(
+			serverfile.delete(getController().getConfig().getProperty(
 					"mount.testdir")
 					+ "/categories/");
 			serverfile.setFlag(ServerFile.CREATED); // Recreates the files when
@@ -317,7 +321,7 @@ public class Server extends AbstractServer {
 		this.saveChanges();
 	}
 
-	private void deleteFileLinksOnLinux() {
+	private void deleteFileLinksOnLinux() throws IOException {
 		if (currentFiles == null) {
 			currentFiles = getFiles();
 		}
@@ -332,7 +336,7 @@ public class Server extends AbstractServer {
 															  // yet ;).
 				continue;
 			}
-			serverfile.tryDelete(rootDir);
+			serverfile.delete(rootDir);
 			serverfile.setFlag(ServerFile.CREATED); // Recreates the files when
 													// share is up again.
 			toUpdate.add(serverfile);
